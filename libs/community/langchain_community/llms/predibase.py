@@ -14,6 +14,7 @@ class Predibase(LLM):
 
     model: str
     predibase_api_key: SecretStr
+    adapter: str
     model_kwargs: Dict[str, Any] = Field(default_factory=dict)
 
     @property
@@ -39,8 +40,18 @@ class Predibase(LLM):
         except ValueError as e:
             raise ValueError("Your API key is not correct. Please try again") from e
         # load model and version
-        results = pc.prompt(prompt, model_name=self.model)
-        return results[0].response
+
+        llm = pc.LLM(self.model)
+
+        # Attach the adapter to the (client-side) deployment object
+        if self.adapter is not None:
+            adapter = pc.get_model(self.adapter)
+            ft_llm = llm.with_adapter(adapter)
+        else:
+            ft_llm = llm
+        
+        results = ft_llm.prompt(prompt)
+        return results.response
 
     @property
     def _identifying_params(self) -> Mapping[str, Any]:
